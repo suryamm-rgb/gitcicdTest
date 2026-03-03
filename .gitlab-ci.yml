@@ -1,28 +1,73 @@
 image: node:20-alpine
 
 stages:
+  - install
+  - quality
   - build
   - deploy
 
 cache:
   paths:
     - node_modules/
+    - .next/cache/
 
-# ======================
-# BUILD STAGE
-# ======================
-build-job:
-  stage: build
+# =============================
+# INSTALL DEPENDENCIES
+# =============================
+install:
+  stage: install
   script:
     - npm ci
+
+# =============================
+# CODE QUALITY
+# =============================
+lint:
+  stage: quality
+  script:
     - npm run lint
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+# =============================
+# BUILD PROJECT
+# =============================
+build:
+  stage: build
+  script:
     - npm run build
   rules:
     - if: $CI_COMMIT_BRANCH
 
-# ======================
-# DEPLOY TO VERCEL
-# ======================
+# =============================
+# DEPLOY TO TEST
+# =============================
+deploy-test:
+  stage: deploy
+  script:
+    - npm install -g vercel
+    - vercel --token $VERCEL_TOKEN --yes --target testing
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test"
+  environment:
+    name: testing
+
+# =============================
+# DEPLOY TO STAGE
+# =============================
+deploy-stage:
+  stage: deploy
+  script:
+    - npm install -g vercel
+    - vercel --token $VERCEL_TOKEN --yes --target staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == "stage"
+  environment:
+    name: staging
+
+# =============================
+# DEPLOY TO PRODUCTION
+# =============================
 deploy-production:
   stage: deploy
   script:
@@ -30,3 +75,39 @@ deploy-production:
     - vercel --prod --token $VERCEL_TOKEN --yes
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+  environment:
+    name: production
+  when: manual
+
+# image: node:20-alpine
+
+# stages:
+#   - build
+#   - deploy
+
+# cache:
+#   paths:
+#     - node_modules/
+
+# # ======================
+# # BUILD STAGE
+# # ======================
+# build-job:
+#   stage: build
+#   script:
+#     - npm ci
+#     - npm run lint
+#     - npm run build
+#   rules:
+#     - if: $CI_COMMIT_BRANCH
+
+# # ======================
+# # DEPLOY TO VERCEL
+# # ======================
+# deploy-production:
+#   stage: deploy
+#   script:
+#     - npm install -g vercel
+#     - vercel --prod --token $VERCEL_TOKEN --yes
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == "main"
